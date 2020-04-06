@@ -1,5 +1,3 @@
 package org.embulk.input.union
 
-class TestUnionInputPlugin
-{
-}
+class TestUnionInputPlugin {}

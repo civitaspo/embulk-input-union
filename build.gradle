@@ -2,6 +2,7 @@ plugins {
     id "scala"
     id "maven-publish"
     id "org.embulk.embulk-plugins" version "0.4.0"
+    id "com.diffplug.gradle.spotless" version "3.28.1"
 }
 
 group = "pro.civitaspo"
@@ -38,6 +39,12 @@ publishing {
         maven {
             url = "${project.buildDir}/mavenPublishLocal"
         }
+    }
+}
+
+spotless {
+    scala {
+        scalafmt('2.4.2').configFile('.scalafmt.conf')
     }
 }
 
