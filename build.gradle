@@ -24,7 +24,7 @@ dependencies {
 }
 
 embulkPlugin {
-    mainClass = "org.embulk.input.union.UnionInputPlugin"
+    mainClass = "pro.civitaspo.embulk.input.union.UnionInputPlugin"
     category = "input"
     type = "union"
 }

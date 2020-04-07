@@ -1,4 +1,4 @@
-package org.embulk.input.union
+package pro.civitaspo.embulk.input.union
 
 import java.util.{List => JList}
 
