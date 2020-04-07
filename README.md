@@ -1,4 +1,5 @@
 # Union input plugin for Embulk
+![Release CI Status Badge](https://github.com/civitaspo/embulk-output-s3_parquet/workflows/Release%20CI/badge.svg) ![Test CI Status Badge](https://github.com/civitaspo/embulk-output-s3_parquet/workflows/Test%20CI/badge.svg)
 
 An [embulk](https://github.com/embulk/embulk/) input plugin to union all loaded data.
 
