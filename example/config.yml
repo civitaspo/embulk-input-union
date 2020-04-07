@@ -1,0 +1,45 @@
+in:
+  type: union
+  union:
+    - in:
+        type: file
+        path_prefix: ./example/data01.tsv
+        parser:
+          type: csv
+          delimiter: "\t"
+          skip_header_lines: 0
+          null_string: ""
+          columns:
+            - { name: id, type: long }
+            - { name: description, type: string }
+            - { name: name, type: string }
+            - { name: t, type: timestamp, format: "%Y-%m-%d %H:%M:%S %z"}
+            - { name: payload, type: json}
+          stop_on_invalid_record: true
+      filters:
+        - type: column
+          add_columns:
+            - {name: file_name, type: string, default: "data01.tsv"}
+    - in:
+        type: file
+        path_prefix: ./example/data02.tsv
+        parser:
+          type: csv
+          delimiter: "\t"
+          skip_header_lines: 0
+          null_string: ""
+          columns:
+            - { name: id, type: long }
+            - { name: description, type: string }
+            - { name: name, type: string }
+            - { name: t, type: timestamp, format: "%Y-%m-%d %H:%M:%S %z"}
+            - { name: payload, type: json}
+          stop_on_invalid_record: true
+      filters:
+        - type: column
+          add_columns:
+            - {name: file_name, type: string, default: "data02.tsv"}
+
+out:
+  type: stdout
+
