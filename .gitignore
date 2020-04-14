@@ -10,3 +10,5 @@ build/
 /.metadata/
 .classpath
 .project
+Gemfile.lock
+vendor/

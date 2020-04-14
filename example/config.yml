@@ -1,9 +1,16 @@
 in:
   type: union
+  columns:
+    - { name: id, type: long }
+    - { name: description, type: string }
+    - { name: name, type: string }
+    - { name: t, type: timestamp, format: "%Y-%m-%d %H:%M:%S %z"}
+    - { name: payload, type: json}
+    - { name: group_name, type: string}
   union:
     - in:
         type: file
-        path_prefix: ./example/data01.tsv
+        path_prefix: ./example/data01
         parser:
           type: csv
           delimiter: "\t"
@@ -19,10 +26,10 @@ in:
       filters:
         - type: column
           add_columns:
-            - {name: file_name, type: string, default: "data01.tsv"}
+            - {name: group_name, type: string, default: "data01"}
     - in:
         type: file
-        path_prefix: ./example/data02.tsv
+        path_prefix: ./example/data02
         parser:
           type: csv
           delimiter: "\t"
@@ -38,7 +45,7 @@ in:
       filters:
         - type: column
           add_columns:
-            - {name: file_name, type: string, default: "data02.tsv"}
+            - {name: group_name, type: string, default: "data02"}
 
 out:
   type: stdout

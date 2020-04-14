@@ -21,6 +21,13 @@ An [embulk](https://github.com/embulk/embulk/) input plugin to union all loaded 
 ```yaml
 in:
   type: union
+  columns:
+    - { name: id, type: long }
+    - { name: description, type: string }
+    - { name: name, type: string }
+    - { name: t, type: timestamp, format: "%Y-%m-%d %H:%M:%S %z" }
+    - { name: payload, type: json }
+    - { name: group_name, type: string }
   union:
     - in:
         type: file
@@ -34,13 +41,13 @@ in:
             - { name: id, type: long }
             - { name: description, type: string }
             - { name: name, type: string }
-            - { name: t, type: timestamp, format: "%Y-%m-%d %H:%M:%S %z"}
-            - { name: payload, type: json}
+            - { name: t, type: timestamp, format: "%Y-%m-%d %H:%M:%S %z" }
+            - { name: payload, type: json }
           stop_on_invalid_record: true
       filters:
         - type: column
           add_columns:
-            - {name: file_name, type: string, default: "data01.tsv"}
+            - { name: group_name, type: string, default: "data01" }
     - in:
         type: file
         path_prefix: ./example/data02.tsv
@@ -53,13 +60,13 @@ in:
             - { name: id, type: long }
             - { name: description, type: string }
             - { name: name, type: string }
-            - { name: t, type: timestamp, format: "%Y-%m-%d %H:%M:%S %z"}
-            - { name: payload, type: json}
+            - { name: t, type: timestamp, format: "%Y-%m-%d %H:%M:%S %z" }
+            - { name: payload, type: json }
           stop_on_invalid_record: true
       filters:
         - type: column
           add_columns:
-            - {name: file_name, type: string, default: "data02.tsv"}
+            - { name: group_name, type: string, default: "data02" }
 
 out:
   type: stdout
@@ -71,7 +78,7 @@ out:
 
 ```shell
 $ ./gradlew gem
-$ embulk bundle install --gemfile ./example/Gemfile --path ./example/vendor/bundle
+$ embulk bundle install --gemfile ./example/Gemfile
 $ embulk run example/config.yml -I build/gemContents/lib -b example
 ```
 
