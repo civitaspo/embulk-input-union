@@ -16,7 +16,8 @@ repositories {
 
 dependencies {
     compileOnly "org.embulk:embulk-core:0.9.23"
-    implementation "org.scala-lang:scala-library:2.13.1"
+    // NOTE: Is shadow plugin required in the future?
+    compile "org.scala-lang:scala-library:2.13.1"
 
     testCompile "junit:junit:4.13"
     testCompile "org.embulk:embulk-deps-buffer:0.9.23"
