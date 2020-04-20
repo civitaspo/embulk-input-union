@@ -12,22 +12,18 @@ An [embulk](https://github.com/embulk/embulk/) input plugin to union all loaded 
 
 ## Configuration
 
-- **union**: embulk configurations for input data. (array of config, required)
-  - **in**: embulk input plugin configuration. (config, required)
-  - **filters**: embulk filter plugin configurations. (array of config, default: `[]`)
+- **union**: Embulk configurations for input data. (array of config, required)
+  - **name**: The name of the bulk load. (string, optional)
+  - **exec**: The embulk execution configuration. (config, optional)
+    - **max_threads**: Maximum number of threads to run concurrently. (int, default: 2x of available CPU cores) 
+  - **in**: The embulk input plugin configuration. (config, required)
+  - **filters**: The embulk filter plugin configurations. (array of config, default: `[]`)
 
 ## Example
 
 ```yaml
 in:
   type: union
-  columns:
-    - { name: id, type: long }
-    - { name: description, type: string }
-    - { name: name, type: string }
-    - { name: t, type: timestamp, format: "%Y-%m-%d %H:%M:%S %z" }
-    - { name: payload, type: json }
-    - { name: group_name, type: string }
   union:
     - in:
         type: file

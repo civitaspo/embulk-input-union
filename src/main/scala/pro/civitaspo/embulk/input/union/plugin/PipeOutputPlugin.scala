@@ -1,4 +1,4 @@
-package pro.civitaspo.embulk.input.union.loader
+package pro.civitaspo.embulk.input.union.plugin
 
 import java.util.{List => JList}
 
@@ -17,7 +17,6 @@ import org.embulk.spi.{
   Schema,
   TransactionalPageOutput
 }
-import pro.civitaspo.embulk.input.union.loader.PipeOutputPlugin.PluginTask
 
 object PipeOutputPlugin {
   trait PluginTask extends Task
@@ -31,7 +30,7 @@ case class PipeOutputPlugin(output: PageOutput) extends OutputPlugin {
       taskCount: Int,
       control: OutputPlugin.Control
   ): ConfigDiff = {
-    val task: PluginTask = config.loadConfig(classOf[PluginTask])
+    val task = config.loadConfig(classOf[PipeOutputPlugin.PluginTask])
     control.run(task.dump())
     Exec.newConfigDiff()
   }
@@ -61,7 +60,9 @@ case class PipeOutputPlugin(output: PageOutput) extends OutputPlugin {
       taskIndex: Int
   ): TransactionalPageOutput =
     new TransactionalPageOutput {
-      override def add(page: Page): Unit = output.add(page)
+      override def add(page: Page): Unit = {
+        output.add(page)
+      }
       override def finish(): Unit = {
         // NOTE: The Original PageOutput will be closed by UnionInputPlugin.
         // output.finish()

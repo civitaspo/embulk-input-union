@@ -1,4 +1,4 @@
-package pro.civitaspo.embulk.input.union.loader
+package pro.civitaspo.embulk.input.union.plugin
 
 import java.util.{List => JList}
 import java.util.concurrent.Future
@@ -68,7 +68,9 @@ class ReuseOutputLocalExecutor(
 
   private def withCurrentThreadName[A](taskIndex: Int)(f: => A): A = {
     Using.resource(
-      new SetCurrentThreadName(String.format("task-%04d", taskIndex))
+      new SetCurrentThreadName(
+        String.format("reuse-output-task-%04d", taskIndex)
+      )
     ) { _ => f }
   }
 

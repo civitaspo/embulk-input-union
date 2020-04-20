@@ -5,23 +5,23 @@ import java.util.{List => JList}
 import org.embulk.config.{
   Config,
   ConfigDiff,
+  ConfigException,
   ConfigSource,
   Task,
   TaskReport,
   TaskSource
 }
-import org.embulk.spi.{Exec, InputPlugin, PageOutput, Schema, SchemaConfig}
-import pro.civitaspo.embulk.input.union.loader.UnionBulkLoader
+import org.embulk.spi.{Exec, InputPlugin, PageOutput, Schema}
 
-import scala.util.Using
+import scala.util.chaining._
 
 class UnionInputPlugin extends InputPlugin {
+  import implicits._
+
   trait PluginTask extends Task {
     @Config("union")
-    def getUnion: JList[UnionBulkLoader.Task]
-
-    @Config("columns")
-    def getColumns: SchemaConfig
+    def getUnion: JList[BreakinBulkLoader.Task]
+    def setUnion(union: JList[BreakinBulkLoader.Task]): Unit
   }
 
   override def transaction(
@@ -29,12 +29,34 @@ class UnionInputPlugin extends InputPlugin {
       control: InputPlugin.Control
   ): ConfigDiff = {
     val task: PluginTask = config.loadConfig(classOf[PluginTask])
-    val schema: Schema = task.getColumns.toSchema
-    val taskCount: Int = task.getUnion.size()
+    val runControlCallback: Schema => Unit = { (schema: Schema) =>
+      // NOTE: UnionInputPlugin#run does not return any TaskReport.
+      //       So, the return values are thrown away.
+      control.run(task.dump(), schema, task.getUnion.size)
+    }
 
-    val taskReports: JList[TaskReport] =
-      control.run(task.dump(), schema, taskCount)
-    Exec.newConfigDiff()
+    val loaders: Seq[BreakinBulkLoader] = task.getUnion.zipWithIndex.map {
+      case (loaderTask: BreakinBulkLoader.Task, idx: Int) =>
+        BreakinBulkLoader(loaderTask, idx)
+    }
+    loaders.head.transaction(loaders.tail.foldLeft(runControlCallback) {
+      (callback: Schema => Unit, nextLoader: BreakinBulkLoader) =>
+        { (schema: Schema) =>
+          nextLoader.transaction { nextSchema: Schema =>
+            if (!schema.equals(nextSchema)) {
+              throw new ConfigException(
+                s"Different schema is found: ${schema.toString} != ${nextSchema.toString}"
+              )
+            }
+            callback(nextSchema)
+          }
+        }
+    })
+    Exec.newConfigDiff().tap { configDiff: ConfigDiff =>
+      val unionConfigDiffs: JList[ConfigDiff] =
+        loaders.map(_.getResult.configDiff)
+      configDiff.set("union", unionConfigDiffs)
+    }
   }
 
   override def resume(
@@ -53,7 +75,11 @@ class UnionInputPlugin extends InputPlugin {
       taskCount: Int,
       successTaskReports: JList[TaskReport]
   ): Unit = {
-    // do nothing.
+    val task: PluginTask = taskSource.loadTask(classOf[PluginTask])
+    task.getUnion.zipWithIndex.foreach {
+      case (loaderTask: BreakinBulkLoader.Task, idx: Int) =>
+        BreakinBulkLoader(loaderTask, idx).cleanup()
+    }
   }
 
   override def run(
@@ -63,13 +89,9 @@ class UnionInputPlugin extends InputPlugin {
       output: PageOutput
   ): TaskReport = {
     val task: PluginTask = taskSource.loadTask(classOf[PluginTask])
-    Using.resource(
-      UnionBulkLoader(
-        task.getUnion.get(taskIndex),
-        taskIndex,
-        output
-      )
-    ) { loader => loader.load() }
+    val loaderTask: BreakinBulkLoader.Task = task.getUnion(taskIndex)
+    try BreakinBulkLoader(loaderTask, taskIndex).run(schema, output)
+    finally output.finish()
     Exec.newTaskReport()
   }
   override def guess(config: ConfigSource): ConfigDiff =
