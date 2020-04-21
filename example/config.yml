@@ -20,7 +20,8 @@ in:
         - type: column
           add_columns:
             - {name: group_name, type: string, default: "group01"}
-    - in:
+    - name: example
+      in:
         type: file
         path_prefix: ./example/data
         parser:

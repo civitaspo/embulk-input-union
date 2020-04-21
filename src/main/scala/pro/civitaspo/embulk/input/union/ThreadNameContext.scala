@@ -25,7 +25,7 @@ case class ThreadNameContext private (
     val currentThreadId: String = String.format("%04d", currentThread.getId)
     try {
       currentThread.setName(s"$currentThreadId:$nextWithoutThreadId")
-      f(ThreadNameContext(current = next, next = current))
+      f(copy(current = next, next = current))
     }
     finally currentThread.setName(s"$currentThreadId:$currentWithoutThreadId")
   }

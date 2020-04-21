@@ -83,10 +83,9 @@ case class BreakinBulkLoader(task: BreakinBulkLoader.Task, idx: Int) {
 
   private lazy val state: LoaderState = LoaderState.get(loaderName)
   private lazy val loaderName: String =
-    s"union-$idx:" + task.getName.getOrElse {
-      s"in_${inputPluginType.getName}->" + filterPluginTypes
-        .map { fp => s"filter_${fp.getName}" }
-        .mkString("->")
+    s"union[$idx]:" + task.getName.getOrElse {
+      s"in[${inputPluginType.getName}]" +
+        s".filters[${filterPluginTypes.map(_.getName).mkString(",")}]"
     }
 
   private lazy val executorTask: ConfigSource = task.getExec
@@ -105,44 +104,43 @@ case class BreakinBulkLoader(task: BreakinBulkLoader.Task, idx: Int) {
     Filters.newFilterPlugins(Exec.session(), filterPluginTypes)
 
   def transaction(f: Schema => Unit): Unit = {
-    ThreadNameContext.switch(loaderName) { ctxt: ThreadNameContext =>
-      logger.info(s"Start transaction for $loaderName.")
-      try {
-        runInput {
-          runFilters {
-            // NOTE: This "f" calls "control.run" that is defined in UnionInputPlugin.
-            //       And then "control.run" calls UnionInputPlugin#run. This means
-            //       BreakinBulkLoader#run is called inside "f". So the plugins
-            //       executions order become the same as the Embulk BulkLoader.
-            //       ref. https://github.com/embulk/embulk/blob/c532e7c084ef7041914ec6b119522f6cb7dcf8e8/embulk-core/src/main/java/org/embulk/exec/BulkLoader.java#L498-L568
-            ctxt.switch { _ => f(lastFilterSchema) }
+    ThreadNameContext.switch(s"$loaderName:#transaction") {
+      ctxt: ThreadNameContext =>
+        try {
+          runInput {
+            runFilters {
+              // NOTE: This "f" calls "control.run" that is defined in UnionInputPlugin.
+              //       And then "control.run" calls UnionInputPlugin#run. This means
+              //       BreakinBulkLoader#run is called inside "f". So the plugins
+              //       executions order become the same as the Embulk BulkLoader.
+              //       ref. https://github.com/embulk/embulk/blob/c532e7c084ef7041914ec6b119522f6cb7dcf8e8/embulk-core/src/main/java/org/embulk/exec/BulkLoader.java#L498-L568
+              ctxt.switch { _ => f(lastFilterSchema) }
+            }
           }
         }
-      }
-      catch {
-        // NOTE: BreakinBulkLoader does not catch SkipTransactionException
-        //       because this exception should be handled in the original
-        //       BulkLoader to stop the output plugin ingesting.
-        // NOTE: BreakinBulkLoader catch only the exception wrapped by
-        //       BreakinBulkLoader.Exception that has this BreakinBulkLoader's
-        //       name, because any other exceptions are not thrown by this
-        //       BreakinBulkLoader.
-        // NOTE: BreakinBulkLoader allows to suppress exceptions only when
-        //       the all tasks and all transactions are committed.
-        case ex: BreakinBulkLoader.Exception
-            if (ex.name == loaderName && state.isAllTasksCommitted && state.isAllTransactionsCommitted) =>
-          logger.warn(
-            s"Threw exception on the stage: ${ex.transactionStage.map(_.name()).getOrElse("None")}," +
-              s" but all tasks and transactions are committed.",
-            ex
-          )
-      }
+        catch {
+          // NOTE: BreakinBulkLoader does not catch SkipTransactionException
+          //       because this exception should be handled in the original
+          //       BulkLoader to stop the output plugin ingesting.
+          // NOTE: BreakinBulkLoader catch only the exception wrapped by
+          //       BreakinBulkLoader.Exception that has this BreakinBulkLoader's
+          //       name, because any other exceptions are not thrown by this
+          //       BreakinBulkLoader.
+          // NOTE: BreakinBulkLoader allows to suppress exceptions only when
+          //       the all tasks and all transactions are committed.
+          case ex: BreakinBulkLoader.Exception
+              if (ex.name == loaderName && state.isAllTasksCommitted && state.isAllTransactionsCommitted) =>
+            logger.warn(
+              s"Threw exception on the stage: ${ex.transactionStage.map(_.name()).getOrElse("None")}," +
+                s" but all tasks and transactions are committed.",
+              ex
+            )
+        }
     }
   }
 
   def run(schema: Schema, output: PageOutput): Unit = {
-    ThreadNameContext.switch(loaderName) { _ =>
-      logger.info(s"Run for $loaderName.")
+    ThreadNameContext.switch(s"$loaderName:#run") { _ =>
       val outputPlugin = PipeOutputPlugin(output)
       val executorPlugin = ReuseOutputLocalExecutorPlugin(outputPlugin)
       try {
@@ -163,8 +161,7 @@ case class BreakinBulkLoader(task: BreakinBulkLoader.Task, idx: Int) {
   }
 
   def cleanup(): Unit = {
-    ThreadNameContext.switch(loaderName) { _ =>
-      logger.info(s"Start cleanup for $loaderName.")
+    ThreadNameContext.switch(s"$loaderName:#cleanup") { _ =>
       val inputTaskSource: TaskSource = inputPlugin match {
         case _: FileInputRunner =>
           FileInputRunner.getFileInputTaskSource(state.getInputTaskSource.get)
