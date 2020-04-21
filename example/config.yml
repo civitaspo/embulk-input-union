@@ -3,7 +3,7 @@ in:
   union:
     - in:
         type: file
-        path_prefix: ./example/data01.tsv
+        path_prefix: ./example/data
         parser:
           type: csv
           delimiter: "\t"
@@ -19,10 +19,11 @@ in:
       filters:
         - type: column
           add_columns:
-            - {name: file_name, type: string, default: "data01.tsv"}
-    - in:
+            - {name: group_name, type: string, default: "group01"}
+    - name: example
+      in:
         type: file
-        path_prefix: ./example/data02.tsv
+        path_prefix: ./example/data
         parser:
           type: csv
           delimiter: "\t"
@@ -38,8 +39,7 @@ in:
       filters:
         - type: column
           add_columns:
-            - {name: file_name, type: string, default: "data02.tsv"}
+            - {name: group_name, type: string, default: "group02"}
 
 out:
   type: stdout
-

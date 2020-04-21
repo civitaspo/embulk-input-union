@@ -1,7 +1,7 @@
 # Union input plugin for Embulk
 ![Release CI Status Badge](https://github.com/civitaspo/embulk-output-s3_parquet/workflows/Release%20CI/badge.svg) ![Test CI Status Badge](https://github.com/civitaspo/embulk-output-s3_parquet/workflows/Test%20CI/badge.svg)
 
-An [embulk](https://github.com/embulk/embulk/) input plugin to union all loaded data.
+An input plugin for Embulk (https://github.com/embulk/embulk/) that unions all data loaded by your defined embulk input & filters plugin configuration.
 
 ## Overview
 
@@ -12,9 +12,12 @@ An [embulk](https://github.com/embulk/embulk/) input plugin to union all loaded 
 
 ## Configuration
 
-- **union**: embulk configurations for input data. (array of config, required)
-  - **in**: embulk input plugin configuration. (config, required)
-  - **filters**: embulk filter plugin configurations. (array of config, default: `[]`)
+- **union**: Embulk configurations for input data. (array of config, required)
+  - **name**: The name of the bulk load. (string, optional)
+  - **exec**: The embulk execution configuration. (config, optional)
+    - **max_threads**: Maximum number of threads to run concurrently. (int, default: The number of available CPU cores) 
+  - **in**: The embulk input plugin configuration. (config, required)
+  - **filters**: The embulk filter plugin configurations. (array of config, default: `[]`)
 
 ## Example
 
@@ -34,14 +37,15 @@ in:
             - { name: id, type: long }
             - { name: description, type: string }
             - { name: name, type: string }
-            - { name: t, type: timestamp, format: "%Y-%m-%d %H:%M:%S %z"}
-            - { name: payload, type: json}
+            - { name: t, type: timestamp, format: "%Y-%m-%d %H:%M:%S %z" }
+            - { name: payload, type: json }
           stop_on_invalid_record: true
       filters:
         - type: column
           add_columns:
-            - {name: file_name, type: string, default: "data01.tsv"}
-    - in:
+            - { name: group_name, type: string, default: "data01" }
+    - name: example
+      in:
         type: file
         path_prefix: ./example/data02.tsv
         parser:
@@ -53,13 +57,13 @@ in:
             - { name: id, type: long }
             - { name: description, type: string }
             - { name: name, type: string }
-            - { name: t, type: timestamp, format: "%Y-%m-%d %H:%M:%S %z"}
-            - { name: payload, type: json}
+            - { name: t, type: timestamp, format: "%Y-%m-%d %H:%M:%S %z" }
+            - { name: payload, type: json }
           stop_on_invalid_record: true
       filters:
         - type: column
           add_columns:
-            - {name: file_name, type: string, default: "data02.tsv"}
+            - { name: group_name, type: string, default: "data02" }
 
 out:
   type: stdout
@@ -71,7 +75,7 @@ out:
 
 ```shell
 $ ./gradlew gem
-$ embulk bundle install --gemfile ./example/Gemfile --path ./example/vendor/bundle
+$ embulk bundle install --gemfile ./example/Gemfile
 $ embulk run example/config.yml -I build/gemContents/lib -b example
 ```
 

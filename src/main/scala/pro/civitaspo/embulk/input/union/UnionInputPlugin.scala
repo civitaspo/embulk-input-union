@@ -2,42 +2,26 @@ package pro.civitaspo.embulk.input.union
 
 import java.util.{List => JList}
 
-import com.google.common.base.Optional
+import org.embulk.config.{
+  Config,
+  ConfigDiff,
+  ConfigException,
+  ConfigSource,
+  Task,
+  TaskReport,
+  TaskSource
+}
+import org.embulk.spi.{Exec, InputPlugin, PageOutput, Schema}
 
-import org.embulk.config.Config
-import org.embulk.config.ConfigDefault
-import org.embulk.config.ConfigDiff
-import org.embulk.config.ConfigSource
-import org.embulk.config.Task
-import org.embulk.config.TaskReport
-import org.embulk.config.TaskSource
-import org.embulk.spi.Exec
-import org.embulk.spi.InputPlugin
-import org.embulk.spi.PageOutput
-import org.embulk.spi.Schema
-import org.embulk.spi.SchemaConfig
+import scala.util.chaining._
 
 class UnionInputPlugin extends InputPlugin {
+  import implicits._
 
   trait PluginTask extends Task {
-
-    // configuration option 1 (required integer)
-    @Config("option1")
-    def getOption1(): Int
-
-    // configuration option 2 (optional string, null is not allowed)
-    @Config("option2")
-    @ConfigDefault("\"myvalue\"")
-    def getOption2(): String
-
-    // configuration option 3 (optional string, null is allowed)
-    @Config("option3")
-    @ConfigDefault("null")
-    def getOption3(): Optional[String]
-
-    // if you get schema from config
-    @Config("columns")
-    def getColumns(): SchemaConfig
+    @Config("union")
+    def getUnion: JList[BreakinBulkLoader.Task]
+    def setUnion(union: JList[BreakinBulkLoader.Task]): Unit
   }
 
   override def transaction(
@@ -45,11 +29,34 @@ class UnionInputPlugin extends InputPlugin {
       control: InputPlugin.Control
   ): ConfigDiff = {
     val task: PluginTask = config.loadConfig(classOf[PluginTask])
+    val runControlCallback: Schema => Unit = { (schema: Schema) =>
+      // NOTE: UnionInputPlugin#run does not return any TaskReport.
+      //       So, the return values are thrown away.
+      control.run(task.dump(), schema, task.getUnion.size)
+    }
 
-    val schema: Schema = task.getColumns().toSchema()
-    val taskCount: Int = 1 // number of run() method calls
-
-    resume(task.dump(), schema, taskCount, control)
+    val loaders: Seq[BreakinBulkLoader] = task.getUnion.zipWithIndex.map {
+      case (loaderTask: BreakinBulkLoader.Task, idx: Int) =>
+        BreakinBulkLoader(loaderTask, idx)
+    }
+    loaders.head.transaction(loaders.tail.foldLeft(runControlCallback) {
+      (callback: Schema => Unit, nextLoader: BreakinBulkLoader) =>
+        { (schema: Schema) =>
+          nextLoader.transaction { nextSchema: Schema =>
+            if (!schema.equals(nextSchema)) {
+              throw new ConfigException(
+                s"Different schema is found: ${schema.toString} != ${nextSchema.toString}"
+              )
+            }
+            callback(nextSchema)
+          }
+        }
+    })
+    Exec.newConfigDiff().tap { configDiff: ConfigDiff =>
+      val unionConfigDiffs: JList[ConfigDiff] =
+        loaders.map(_.getResult.configDiff)
+      configDiff.set("union", unionConfigDiffs)
+    }
   }
 
   override def resume(
@@ -57,17 +64,23 @@ class UnionInputPlugin extends InputPlugin {
       schema: Schema,
       taskCount: Int,
       control: InputPlugin.Control
-  ): ConfigDiff = {
-    control.run(taskSource, schema, taskCount)
-    Exec.newConfigDiff()
-  }
+  ): ConfigDiff =
+    throw new UnsupportedOperationException(
+      "UnionInputPlugin does not support 'resume'."
+    )
 
   override def cleanup(
       taskSource: TaskSource,
       schema: Schema,
       taskCount: Int,
       successTaskReports: JList[TaskReport]
-  ): Unit = {}
+  ): Unit = {
+    val task: PluginTask = taskSource.loadTask(classOf[PluginTask])
+    task.getUnion.zipWithIndex.foreach {
+      case (loaderTask: BreakinBulkLoader.Task, idx: Int) =>
+        BreakinBulkLoader(loaderTask, idx).cleanup()
+    }
+  }
 
   override def run(
       taskSource: TaskSource,
@@ -76,14 +89,13 @@ class UnionInputPlugin extends InputPlugin {
       output: PageOutput
   ): TaskReport = {
     val task: PluginTask = taskSource.loadTask(classOf[PluginTask])
-
-    // Write your code here :)
+    val loaderTask: BreakinBulkLoader.Task = task.getUnion(taskIndex)
+    try BreakinBulkLoader(loaderTask, taskIndex).run(schema, output)
+    finally output.finish()
+    Exec.newTaskReport()
+  }
+  override def guess(config: ConfigSource): ConfigDiff =
     throw new UnsupportedOperationException(
-      "UnionInputPlugin.run method is not implemented yet"
+      "UnionInputPlugin does not support 'guess'."
     )
-  }
-
-  override def guess(config: ConfigSource): ConfigDiff = {
-    Exec.newConfigDiff()
-  }
 }
