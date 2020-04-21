@@ -31,7 +31,7 @@ case class ReuseOutputLocalExecutorPlugin(outputPlugin: OutputPlugin)
   ): Unit = {
     val task =
       config.loadConfig(classOf[ReuseOutputLocalExecutorPlugin.PluginTask])
-    val maxThreads = task.getMaxThreads.orElse(numCores * 2)
+    val maxThreads = task.getMaxThreads.orElse(numCores)
     logger.info(
       s"Using local thread executor with max_threads=$maxThreads / tasks=$inputTaskCount"
     )

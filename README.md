@@ -1,7 +1,7 @@
 # Union input plugin for Embulk
 ![Release CI Status Badge](https://github.com/civitaspo/embulk-output-s3_parquet/workflows/Release%20CI/badge.svg) ![Test CI Status Badge](https://github.com/civitaspo/embulk-output-s3_parquet/workflows/Test%20CI/badge.svg)
 
-An [embulk](https://github.com/embulk/embulk/) input plugin to union all loaded data.
+An input plugin for Embulk (https://github.com/embulk/embulk/) that unions all data loaded by your defined embulk input & filters plugin configuration.
 
 ## Overview
 
@@ -15,7 +15,7 @@ An [embulk](https://github.com/embulk/embulk/) input plugin to union all loaded 
 - **union**: Embulk configurations for input data. (array of config, required)
   - **name**: The name of the bulk load. (string, optional)
   - **exec**: The embulk execution configuration. (config, optional)
-    - **max_threads**: Maximum number of threads to run concurrently. (int, default: 2x of available CPU cores) 
+    - **max_threads**: Maximum number of threads to run concurrently. (int, default: The number of available CPU cores) 
   - **in**: The embulk input plugin configuration. (config, required)
   - **filters**: The embulk filter plugin configurations. (array of config, default: `[]`)
 
@@ -44,7 +44,8 @@ in:
         - type: column
           add_columns:
             - { name: group_name, type: string, default: "data01" }
-    - in:
+    - name: example
+      in:
         type: file
         path_prefix: ./example/data02.tsv
         parser:
