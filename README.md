@@ -1,7 +1,7 @@
 # Union input plugin for Embulk
 ![Release CI Status Badge](https://github.com/civitaspo/embulk-output-s3_parquet/workflows/Release%20CI/badge.svg) ![Test CI Status Badge](https://github.com/civitaspo/embulk-output-s3_parquet/workflows/Test%20CI/badge.svg)
 
-An input plugin for Embulk (https://github.com/embulk/embulk/) that unions all data loaded by your defined embulk input & filters plugin configuration.
+An input plugin for [Embulk](https://github.com/embulk/embulk/) that unions all data loaded by your defined embulk input & filters plugin configuration.
 
 ## Overview
 
