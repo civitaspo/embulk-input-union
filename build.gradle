@@ -1,7 +1,7 @@
 plugins {
     id "scala"
     id "maven-publish"
-    id "org.embulk.embulk-plugins" version "0.4.0"
+    id "org.embulk.embulk-plugins" version "0.4.1"
     id "com.diffplug.gradle.spotless" version "3.28.1"
 }
 
