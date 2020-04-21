@@ -11,7 +11,7 @@ import org.embulk.config.{
   TaskSource,
   Task => EmbulkTask
 }
-import org.embulk.exec.{SetCurrentThreadName, TransactionStage}
+import org.embulk.exec.TransactionStage
 import org.embulk.exec.TransactionStage.{
   EXECUTOR_BEGIN,
   EXECUTOR_COMMIT,
@@ -43,7 +43,6 @@ import pro.civitaspo.embulk.input.union.plugin.{
   ReuseOutputLocalExecutorPlugin
 }
 
-import scala.util.Using
 import scala.util.chaining._
 
 object BreakinBulkLoader {
@@ -82,8 +81,8 @@ case class BreakinBulkLoader(task: BreakinBulkLoader.Task, idx: Int) {
   private val logger: Logger =
     LoggerFactory.getLogger(classOf[BreakinBulkLoader])
 
-  private lazy val state: LoaderState = LoaderState.get(loadName)
-  private lazy val loadName: String =
+  private lazy val state: LoaderState = LoaderState.get(loaderName)
+  private lazy val loaderName: String =
     s"union-$idx:" + task.getName.getOrElse {
       s"in_${inputPluginType.getName}->" + filterPluginTypes
         .map { fp => s"filter_${fp.getName}" }
@@ -106,8 +105,8 @@ case class BreakinBulkLoader(task: BreakinBulkLoader.Task, idx: Int) {
     Filters.newFilterPlugins(Exec.session(), filterPluginTypes)
 
   def transaction(f: Schema => Unit): Unit = {
-    withLoadName {
-      logger.info(s"Start transaction for $loadName.")
+    ThreadNameContext.switch(loaderName) { ctxt: ThreadNameContext =>
+      logger.info(s"Start transaction for $loaderName.")
       try {
         runInput {
           runFilters {
@@ -116,7 +115,7 @@ case class BreakinBulkLoader(task: BreakinBulkLoader.Task, idx: Int) {
             //       BreakinBulkLoader#run is called inside "f". So the plugins
             //       executions order become the same as the Embulk BulkLoader.
             //       ref. https://github.com/embulk/embulk/blob/c532e7c084ef7041914ec6b119522f6cb7dcf8e8/embulk-core/src/main/java/org/embulk/exec/BulkLoader.java#L498-L568
-            f(lastFilterSchema)
+            ctxt.switch { _ => f(lastFilterSchema) }
           }
         }
       }
@@ -131,7 +130,7 @@ case class BreakinBulkLoader(task: BreakinBulkLoader.Task, idx: Int) {
         // NOTE: BreakinBulkLoader allows to suppress exceptions only when
         //       the all tasks and all transactions are committed.
         case ex: BreakinBulkLoader.Exception
-            if (ex.name == loadName && state.isAllTasksCommitted && state.isAllTransactionsCommitted) =>
+            if (ex.name == loaderName && state.isAllTasksCommitted && state.isAllTransactionsCommitted) =>
           logger.warn(
             s"Threw exception on the stage: ${ex.transactionStage.map(_.name()).getOrElse("None")}," +
               s" but all tasks and transactions are committed.",
@@ -142,8 +141,8 @@ case class BreakinBulkLoader(task: BreakinBulkLoader.Task, idx: Int) {
   }
 
   def run(schema: Schema, output: PageOutput): Unit = {
-    withLoadName {
-      logger.info(s"Run for $loadName.")
+    ThreadNameContext.switch(loaderName) { _ =>
+      logger.info(s"Run for $loaderName.")
       val outputPlugin = PipeOutputPlugin(output)
       val executorPlugin = ReuseOutputLocalExecutorPlugin(outputPlugin)
       try {
@@ -164,8 +163,8 @@ case class BreakinBulkLoader(task: BreakinBulkLoader.Task, idx: Int) {
   }
 
   def cleanup(): Unit = {
-    withLoadName {
-      logger.info(s"Start cleanup for $loadName.")
+    ThreadNameContext.switch(loaderName) { _ =>
+      logger.info(s"Start cleanup for $loaderName.")
       val inputTaskSource: TaskSource = inputPlugin match {
         case _: FileInputRunner =>
           FileInputRunner.getFileInputTaskSource(state.getInputTaskSource.get)
@@ -178,29 +177,24 @@ case class BreakinBulkLoader(task: BreakinBulkLoader.Task, idx: Int) {
         state.getInputTaskReports.flatten
       )
 
-      // NOTE: PipeOutputPlugin does not need to do cleanup.
-      // val outputTaskSource: TaskSource = inputPlugin match {
-      //   case _: FileOutputRunner =>
-      //     FileOutputRunner.getFileOutputTaskSource(
-      //       state.getOutputTaskSource.get
-      //     )
-      //   case _ => state.getOutputTaskSource.get
-      // }
-      // outputPlugin.cleanup(
-      //   outputTaskSource,
-      //   state.getExecutorSchema.get,
-      //   state.getOutputTaskCount.get,
-      //   state.getOutputTaskReports.flatten
-      // )
+    // NOTE: PipeOutputPlugin does not need to do cleanup.
+    // val outputTaskSource: TaskSource = inputPlugin match {
+    //   case _: FileOutputRunner =>
+    //     FileOutputRunner.getFileOutputTaskSource(
+    //       state.getOutputTaskSource.get
+    //     )
+    //   case _ => state.getOutputTaskSource.get
+    // }
+    // outputPlugin.cleanup(
+    //   outputTaskSource,
+    //   state.getExecutorSchema.get,
+    //   state.getOutputTaskCount.get,
+    //   state.getOutputTaskReports.flatten
+    // )
     }
   }
 
   def getResult: BreakinBulkLoader.Result = buildResult()
-
-  private def withLoadName[A](f: => A): A =
-    withSetCurrentThreadName(loadName)(f)
-  private def withSetCurrentThreadName[A](name: String)(f: => A): A =
-    Using.resource(new SetCurrentThreadName(name)) { _ => f }
 
   private def lastFilterSchema: Schema =
     state.getFilterSchemas.map(_.last).getOrElse {
@@ -208,15 +202,17 @@ case class BreakinBulkLoader(task: BreakinBulkLoader.Task, idx: Int) {
         "'filterSchemas' must be set. Call #runFilters before."
       )
     }
+
   private def buildException(
       ex: Throwable
   ): BreakinBulkLoader.Exception = {
     BreakinBulkLoader.Exception(
-      loadName,
+      loaderName,
       state.getTransactionStage,
       ex
     )
   }
+
   private def buildResult(): BreakinBulkLoader.Result = {
     BreakinBulkLoader.Result(
       configDiff = Exec.newConfigDiff().tap { configDiff: ConfigDiff =>
@@ -327,5 +323,5 @@ case class BreakinBulkLoader(task: BreakinBulkLoader.Task, idx: Int) {
       )
     }
   }
-  // scalafmt: { maxColumn = 80 } (back to default)
+  // scalafmt: { maxColumn = 80 }
 }

@@ -5,7 +5,6 @@ import java.util.concurrent.Future
 
 import org.embulk.config.TaskReport
 import org.embulk.exec.LocalExecutorPlugin.DirectExecutor
-import org.embulk.exec.SetCurrentThreadName
 import org.embulk.spi.{
   Exec,
   ExecSession,
@@ -18,8 +17,7 @@ import org.embulk.spi.{
 import org.embulk.spi.util.{Executors, Filters}
 import org.embulk.spi.util.Executors.ProcessStateCallback
 import org.slf4j.{Logger, LoggerFactory}
-
-import scala.util.Using
+import pro.civitaspo.embulk.input.union.ThreadNameContext
 
 class ReuseOutputLocalExecutor(
     outputPlugin: OutputPlugin,
@@ -42,20 +40,21 @@ class ReuseOutputLocalExecutor(
 
     executor.submit(() => {
       try {
-        withCurrentThreadName(taskIndex) {
-          val callback = new ProcessStateCallback {
-            override def started(): Unit = {
-              state.getInputTaskState(taskIndex).start()
-              state.getOutputTaskState(taskIndex).start()
+        ThreadNameContext.switch(String.format("task-%04d", taskIndex)) {
+          _ =>
+            val callback = new ProcessStateCallback {
+              override def started(): Unit = {
+                state.getInputTaskState(taskIndex).start()
+                state.getOutputTaskState(taskIndex).start()
+              }
+
+              override def inputCommitted(report: TaskReport): Unit =
+                state.getInputTaskState(taskIndex).setTaskReport(report)
+
+              override def outputCommitted(report: TaskReport): Unit =
+                state.getOutputTaskState(taskIndex).setTaskReport(report)
             }
-
-            override def inputCommitted(report: TaskReport): Unit =
-              state.getInputTaskState(taskIndex).setTaskReport(report)
-
-            override def outputCommitted(report: TaskReport): Unit =
-              state.getOutputTaskState(taskIndex).setTaskReport(report)
-          }
-          process(Exec.session(), task, taskIndex, callback)
+            process(Exec.session(), task, taskIndex, callback)
         }
         null
       }
@@ -64,14 +63,6 @@ class ReuseOutputLocalExecutor(
         state.getOutputTaskState(taskIndex).finish()
       }
     })
-  }
-
-  private def withCurrentThreadName[A](taskIndex: Int)(f: => A): A = {
-    Using.resource(
-      new SetCurrentThreadName(
-        String.format("reuse-output-task-%04d", taskIndex)
-      )
-    ) { _ => f }
   }
 
   private def process(
