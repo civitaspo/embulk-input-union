@@ -7,7 +7,8 @@ plugins {
 
 group = "pro.civitaspo"
 version = "0.0.1"
-description = "Embulk (https://github.com/embulk/embulk/) input plugin to union all loaded data."
+description = "An input plugin for Embulk (https://github.com/embulk/embulk/) that" +
+    " unions all data loaded by your defined embulk input & filters plugin configuration."
 
 repositories {
     mavenCentral()
@@ -53,7 +54,7 @@ gem {
     from("LICENSE.txt")
     authors = ["Civitaspo"]
     email = [ "civitaspo@gmail.com" ]
-    summary = "Embulk (https://github.com/embulk/embulk/) input plugin to union all loaded data."
+    summary = "An embulk input plugin to union all loaded data."
     homepage = "https://github.com/civitaspo/embulk-input-union"
     licenses = ["MIT"]
 }
