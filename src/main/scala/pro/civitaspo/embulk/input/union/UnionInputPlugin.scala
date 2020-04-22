@@ -32,6 +32,9 @@ class UnionInputPlugin extends InputPlugin {
     if (task.getUnion.isEmpty)
       throw new ConfigException("1 or more configurations are required.")
 
+    val transactionId: String = Utils.genTransactionId()
+    task.getUnion.foreach(_.setTransactionId(transactionId))
+
     val runControlCallback: Schema => Unit = { (schema: Schema) =>
       // NOTE: UnionInputPlugin#run does not return any TaskReport.
       //       So, the return values are thrown away.
