@@ -61,7 +61,9 @@ case class PipeOutputPlugin(output: PageOutput) extends OutputPlugin {
   ): TransactionalPageOutput =
     new TransactionalPageOutput {
       override def add(page: Page): Unit = {
-        output.add(page)
+        output.synchronized {
+          output.add(page)
+        }
       }
       override def finish(): Unit = {
         // NOTE: The Original PageOutput will be closed by UnionInputPlugin.
