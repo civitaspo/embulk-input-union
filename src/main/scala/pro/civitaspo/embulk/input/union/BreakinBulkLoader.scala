@@ -181,20 +181,22 @@ case class BreakinBulkLoader(task: BreakinBulkLoader.Task, idx: Int) {
         state.getInputTaskReports.flatten
       )
 
-    // NOTE: PipeOutputPlugin does not need to do cleanup.
-    // val outputTaskSource: TaskSource = inputPlugin match {
-    //   case _: FileOutputRunner =>
-    //     FileOutputRunner.getFileOutputTaskSource(
-    //       state.getOutputTaskSource.get
-    //     )
-    //   case _ => state.getOutputTaskSource.get
-    // }
-    // outputPlugin.cleanup(
-    //   outputTaskSource,
-    //   state.getExecutorSchema.get,
-    //   state.getOutputTaskCount.get,
-    //   state.getOutputTaskReports.flatten
-    // )
+      // NOTE: PipeOutputPlugin does not need to do cleanup.
+      // val outputTaskSource: TaskSource = inputPlugin match {
+      //   case _: FileOutputRunner =>
+      //     FileOutputRunner.getFileOutputTaskSource(
+      //       state.getOutputTaskSource.get
+      //     )
+      //   case _ => state.getOutputTaskSource.get
+      // }
+      // outputPlugin.cleanup(
+      //   outputTaskSource,
+      //   state.getExecutorSchema.get,
+      //   state.getOutputTaskCount.get,
+      //   state.getOutputTaskReports.flatten
+      // )
+
+      state.cleanup()
     }
   }
 

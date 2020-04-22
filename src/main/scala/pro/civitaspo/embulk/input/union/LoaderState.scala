@@ -10,7 +10,7 @@ import scala.jdk.CollectionConverters._
 
 object LoaderState {
 
-  case class State(
+  sealed case class State(
       inputTaskCount: Option[Int] = None,
       outputTaskCount: Option[Int] = None,
       inputTaskStates: Option[Seq[TaskState]] = None,
@@ -35,15 +35,21 @@ object LoaderState {
         states.getOrElseUpdate(name, State())
       override protected def setState(state: State): Unit =
         states.update(name, state)
+      override def cleanup(): Unit = states.remove(name)
     }
   }
 }
 
-trait LoaderState {
+sealed trait LoaderState {
+
   import implicits._
 
   protected def getState: LoaderState.State
   protected def setState(state: LoaderState.State): Unit
+  // NOTE: When embulk is run as a server, the State is left that
+  //       is not used anymore. So, this #cleanup method should be
+  //       called when the bulk load is finished.
+  def cleanup(): Unit
 
   def getInputTaskCount: Option[Int] = getState.inputTaskCount
   def setInputTaskCount(inputTaskCount: Int): Unit =
