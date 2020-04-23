@@ -62,7 +62,8 @@ object BreakinBulkLoader {
     @ConfigDefault("[]")
     def getFilters: JList[ConfigSource]
 
-    // NOTE: When embulk is run as a server, the bulk loads that have the same
+    // NOTE: When embulk is run as a server or using an union plugin inside
+    //       another union plugin, the bulk loads that have the same
     //       loaderName cannot run twice or more because LoaderState is shared.
     //       So, the transaction id is used to distinguish the bulk loads.
     def setTransactionId(execId: String): Unit

@@ -140,4 +140,61 @@ class TestUnionInputPlugin extends EmbulkTestHelper {
       }
     )
   }
+
+  test("Can use another union inside an union") {
+    val yaml =
+      """
+        | union:
+        |   - in:
+        |       type: union
+        |       union:
+        |         - in:
+        |             type: config
+        |             columns:
+        |               - {name: c1, type: long}
+        |             values:
+        |               - - [0]
+        |         - in:
+        |             type: config
+        |             columns:
+        |               - {name: c0, type: long}
+        |             values:
+        |               - - [1]
+        |           filters:
+        |             - type: rename
+        |               columns:
+        |                 c0: c1
+        |   - in:
+        |       type: config
+        |       columns:
+        |         - {name: c1, type: long}
+        |       values:
+        |         - - [2]
+        |""".stripMargin
+    val config: ConfigSource = loadConfigSourceFromYamlString(yaml)
+    runInput(
+      config, { result: Seq[Seq[AnyRef]] =>
+        assert(result.size == 3, "The size of records is 3.")
+
+        assert(
+          Seq(0, 1).contains(result.head.head.asInstanceOf[Long]),
+          "The value of the first record is 0 or 1" +
+            " (The order of the values ingested by the inside union plugin" +
+            " is not controllable)."
+        )
+        assert(
+          Seq(0, 1).contains(result(1).head.asInstanceOf[Long]),
+          "The value of the first record is 0 or 1" +
+            " (The order of the values ingested by the inside union plugin" +
+            " is not controllable)."
+        )
+
+        assert(
+          result(2).head.asInstanceOf[Long] == 2,
+          "The value of the third record is 2."
+        )
+      }
+    )
+  }
+
 }
