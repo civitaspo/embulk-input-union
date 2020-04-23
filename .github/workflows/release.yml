@@ -1,11 +1,9 @@
 name: Release CI
 
 on:
-  pull_request:
-    branches:
-      - master
-    types:
-      - closed
+  push:
+    tags:
+      - '*'
 
 jobs:
   release:
@@ -19,13 +17,10 @@ jobs:
       with:
         java-version: 1.8
     - name: scalafmt
-      if: github.event.pull_request.merged == true
       run: ./gradlew spotlessCheck
     - name: scalatest
-      if: github.event.pull_request.merged == true
       run: ./gradlew scalatest
     - name: Release the new gem
-      if: github.event.pull_request.merged == true
       run: |
         mkdir -p $HOME/.gem
         touch $HOME/.gem/credentials
