@@ -61,6 +61,13 @@ object BreakinBulkLoader {
     @Config("filters")
     @ConfigDefault("[]")
     def getFilters: JList[ConfigSource]
+
+    // NOTE: When embulk is run as a server or using an union plugin inside
+    //       another union plugin, the bulk loads that have the same
+    //       loaderName cannot run twice or more because LoaderState is shared.
+    //       So, the transaction id is used to distinguish the bulk loads.
+    def setTransactionId(execId: String): Unit
+    def getTransactionId: String
   }
 
   case class Exception(
@@ -81,12 +88,13 @@ case class BreakinBulkLoader(task: BreakinBulkLoader.Task, idx: Int) {
   private val logger: Logger =
     LoggerFactory.getLogger(classOf[BreakinBulkLoader])
 
-  private lazy val state: LoaderState = LoaderState.get(loaderName)
+  private lazy val state: LoaderState = LoaderState.getOrInitialize(loaderName)
   private lazy val loaderName: String =
-    s"union[$idx]:" + task.getName.getOrElse {
-      s"in[${inputPluginType.getName}]" +
-        s".filters[${filterPluginTypes.map(_.getName).mkString(",")}]"
-    }
+    s"transaction[${task.getTransactionId}]:union[$idx]:" + task.getName
+      .getOrElse {
+        s"in[${inputPluginType.getName}]" +
+          s".filters[${filterPluginTypes.map(_.getName).mkString(",")}]"
+      }
 
   private lazy val executorTask: ConfigSource = task.getExec
   private lazy val outputTask: ConfigSource = Exec.newConfigSource()
@@ -174,20 +182,22 @@ case class BreakinBulkLoader(task: BreakinBulkLoader.Task, idx: Int) {
         state.getInputTaskReports.flatten
       )
 
-    // NOTE: PipeOutputPlugin does not need to do cleanup.
-    // val outputTaskSource: TaskSource = inputPlugin match {
-    //   case _: FileOutputRunner =>
-    //     FileOutputRunner.getFileOutputTaskSource(
-    //       state.getOutputTaskSource.get
-    //     )
-    //   case _ => state.getOutputTaskSource.get
-    // }
-    // outputPlugin.cleanup(
-    //   outputTaskSource,
-    //   state.getExecutorSchema.get,
-    //   state.getOutputTaskCount.get,
-    //   state.getOutputTaskReports.flatten
-    // )
+      // NOTE: PipeOutputPlugin does not need to do cleanup.
+      // val outputTaskSource: TaskSource = inputPlugin match {
+      //   case _: FileOutputRunner =>
+      //     FileOutputRunner.getFileOutputTaskSource(
+      //       state.getOutputTaskSource.get
+      //     )
+      //   case _ => state.getOutputTaskSource.get
+      // }
+      // outputPlugin.cleanup(
+      //   outputTaskSource,
+      //   state.getExecutorSchema.get,
+      //   state.getOutputTaskCount.get,
+      //   state.getOutputTaskReports.flatten
+      // )
+
+      state.cleanup()
     }
   }
 

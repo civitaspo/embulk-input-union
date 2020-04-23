@@ -21,9 +21,9 @@ jobs:
     - name: scalafmt
       if: github.event.pull_request.merged == true
       run: ./gradlew spotlessCheck
-    - name: Test with Gradle
+    - name: scalatest
       if: github.event.pull_request.merged == true
-      run: ./gradlew test
+      run: ./gradlew scalatest
     - name: Release the new gem
       if: github.event.pull_request.merged == true
       run: |

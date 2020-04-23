@@ -20,9 +20,12 @@ dependencies {
     // NOTE: Is shadow plugin required in the future?
     compile "org.scala-lang:scala-library:2.13.1"
 
-    testCompile "junit:junit:4.13"
-    testCompile "org.embulk:embulk-deps-buffer:0.9.23"
-    testCompile "org.embulk:embulk-deps-config:0.9.23"
+    testImplementation "org.embulk:embulk-deps-buffer:0.9.23"
+    testImplementation "org.embulk:embulk-deps-config:0.9.23"
+    testImplementation "org.embulk:embulk-core:0.9.23"
+    testImplementation "org.embulk:embulk-core:0.9.23:tests"
+    testImplementation "org.embulk:embulk-standards:0.9.23"
+    testImplementation "org.scalatest:scalatest_2.13:3.1.1"
 }
 
 embulkPlugin {
@@ -61,4 +64,10 @@ gem {
 
 gemPush {
     host = "https://rubygems.org"
+}
+
+task scalatest(dependsOn: ['testClasses'], type: JavaExec) {
+    main = 'org.scalatest.tools.Runner'
+    args = ['-R', 'build/classes/scala/test', '-o']
+    classpath = sourceSets.test.runtimeClasspath
 }
