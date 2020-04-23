@@ -1,12 +1,10 @@
 package pro.civitaspo.embulk.input.union
 
-import com.google.common.collect.Maps
 import org.embulk.config.{ConfigDiff, ConfigException, TaskReport, TaskSource}
 import org.embulk.exec.TransactionStage
 import org.embulk.spi.{ProcessState, Schema, TaskState}
 
-import scala.collection.concurrent.{Map => ConcurrentMap}
-import scala.jdk.CollectionConverters._
+import scala.collection.concurrent.TrieMap
 
 object LoaderState {
 
@@ -26,8 +24,7 @@ object LoaderState {
       executorSchema: Option[Schema] = None
   )
 
-  private val states: ConcurrentMap[String, State] =
-    Maps.newConcurrentMap[String, State]().asScala
+  private val states: TrieMap[String, State] = TrieMap[String, State]()
 
   def getOrInitialize(name: String): LoaderState = {
     new LoaderState {
