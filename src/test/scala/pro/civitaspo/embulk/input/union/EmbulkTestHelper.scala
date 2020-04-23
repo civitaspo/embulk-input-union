@@ -54,4 +54,8 @@ trait EmbulkTestHelper {
   def loadConfigSourceFromYamlString(yaml: String): ConfigSource = {
     new ConfigLoader(runtime.getModelManager).fromYamlString(yaml)
   }
+
+  def tsvResourceDir: String = {
+    classOf[EmbulkTestHelper].getResource("/tsv").getPath
+  }
 }
