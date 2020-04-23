@@ -100,14 +100,14 @@ class TestUnionInputPlugin
 
         assert(
           result.take(25).map(_(2).asInstanceOf[String]).forall(_ == "file"),
-          "The first 25 rows are sourced from \"file\"."
+          "The first 25 records are sourced from \"file\"."
         )
         assert(
           result
             .takeRight(5)
             .map(_(2).asInstanceOf[String])
             .forall(_ == "config"),
-          "The last 5 rows are sourced from \"config\"."
+          "The last 5 records are sourced from \"config\"."
         )
       }
     )

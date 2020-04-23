@@ -1,6 +1,6 @@
 package pro.civitaspo.embulk.input.union
 
-import java.util.{List => JList}
+import java.util.{Optional, List => JList}
 
 import org.embulk.config.{
   Config,
@@ -21,7 +21,6 @@ class UnionInputPlugin extends InputPlugin {
   trait PluginTask extends Task {
     @Config("union")
     def getUnion: JList[BreakinBulkLoader.Task]
-    def setUnion(union: JList[BreakinBulkLoader.Task]): Unit
   }
 
   override def transaction(
@@ -30,7 +29,9 @@ class UnionInputPlugin extends InputPlugin {
   ): ConfigDiff = {
     val task: PluginTask = config.loadConfig(classOf[PluginTask])
     if (task.getUnion.isEmpty)
-      throw new ConfigException("1 or more configurations are required.")
+      throw new ConfigException(
+        "1 or more configurations are required for \"union\" option."
+      )
 
     val transactionId: String = Utils.genTransactionId()
     task.getUnion.foreach(_.setTransactionId(transactionId))

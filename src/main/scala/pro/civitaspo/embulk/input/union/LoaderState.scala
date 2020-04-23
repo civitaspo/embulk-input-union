@@ -29,7 +29,7 @@ object LoaderState {
   private val states: ConcurrentMap[String, State] =
     Maps.newConcurrentMap[String, State]().asScala
 
-  def get(name: String): LoaderState = {
+  def getOrInitialize(name: String): LoaderState = {
     new LoaderState {
       override protected def getState: State =
         states.getOrElseUpdate(name, State())

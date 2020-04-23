@@ -31,7 +31,9 @@ class TestConfigException
     val caught = intercept[ConfigException](runInput(config))
     assert(caught.isInstanceOf[ConfigException])
     assert(
-      caught.getMessage.startsWith("1 or more configurations are required.")
+      caught.getMessage.startsWith(
+        "1 or more configurations are required for \"union\" option."
+      )
     )
   }
 

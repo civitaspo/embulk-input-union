@@ -87,7 +87,7 @@ case class BreakinBulkLoader(task: BreakinBulkLoader.Task, idx: Int) {
   private val logger: Logger =
     LoggerFactory.getLogger(classOf[BreakinBulkLoader])
 
-  private lazy val state: LoaderState = LoaderState.get(loaderName)
+  private lazy val state: LoaderState = LoaderState.getOrInitialize(loaderName)
   private lazy val loaderName: String =
     s"transaction[${task.getTransactionId}]:union[$idx]:" + task.getName
       .getOrElse {
