@@ -1,21 +1,83 @@
 package pro.civitaspo.embulk.input.union
 
-import org.embulk.config.{ConfigLoader, ConfigSource, TaskReport, TaskSource}
-import org.embulk.EmbulkTestRuntime
-import org.embulk.spi.{Exec, Page, Schema}
+import com.google.inject.{Binder, Guice, Module, Stage}
+import org.embulk.{TestPluginSourceModule, TestUtilityModule}
+import org.embulk.config.{
+  ConfigLoader,
+  ConfigSource,
+  DataSourceImpl,
+  ModelManager,
+  TaskReport,
+  TaskSource
+}
+import org.embulk.exec.{
+  ExecModule,
+  ExtensionServiceLoaderModule,
+  SystemConfigModule
+}
+import org.embulk.jruby.JRubyScriptingModule
+import org.embulk.plugin.{
+  BuiltinPluginSourceModule,
+  InjectedPluginSource,
+  PluginClassLoaderModule
+}
+import org.embulk.spi.{Exec, ExecSession, InputPlugin, Page, Schema}
 import org.embulk.spi.TestPageBuilderReader.MockPageOutput
 import org.embulk.spi.util.Pages
-import org.junit.Rule
+import org.scalatest.BeforeAndAfter
+import org.scalatest.diagrams.Diagrams
+import org.scalatest.funsuite.AnyFunSuite
 
-import scala.annotation.meta.getter
 import scala.concurrent.ExecutionException
 import scala.util.chaining._
 
-trait EmbulkTestHelper {
+object EmbulkTestHelper {
+  case class TestRuntimeModule() extends Module {
+    override def configure(binder: Binder): Unit = {
+      val systemConfig = new DataSourceImpl(null)
+      new SystemConfigModule(systemConfig).configure(binder)
+      new ExecModule(systemConfig).configure(binder)
+      new ExtensionServiceLoaderModule(systemConfig).configure(binder)
+      new BuiltinPluginSourceModule().configure(binder)
+      new JRubyScriptingModule(systemConfig).configure(binder)
+      new PluginClassLoaderModule().configure(binder)
+      new TestUtilityModule().configure(binder)
+      new TestPluginSourceModule().configure(binder)
+      InjectedPluginSource.registerPluginTo(
+        binder,
+        classOf[InputPlugin],
+        "union",
+        classOf[UnionInputPlugin]
+      )
+    }
+  }
+
+  def getExecSession: ExecSession = {
+    val injector =
+      Guice.createInjector(Stage.PRODUCTION, TestRuntimeModule())
+    val execConfig = new DataSourceImpl(
+      injector.getInstance(classOf[ModelManager])
+    )
+    ExecSession.builder(injector).fromExecConfig(execConfig).build()
+  }
+}
+
+abstract class EmbulkTestHelper
+    extends AnyFunSuite
+    with BeforeAndAfter
+    with Diagrams {
+
   import implicits._
 
-  @(Rule @getter)
-  def runtime: EmbulkTestRuntime = new EmbulkTestRuntime()
+  var exec: ExecSession = _
+
+  before {
+    exec = EmbulkTestHelper.getExecSession
+  }
+  after {
+    exec.cleanup()
+    exec = null
+  }
 
   def runInput(
       inConfig: ConfigSource,
@@ -23,25 +85,26 @@ trait EmbulkTestHelper {
   ): Unit = {
     try {
       Exec.doWith(
-        runtime.getExec,
+        exec,
         () => {
-          runtime.getInstance(classOf[UnionInputPlugin]).tap { plugin =>
-            plugin.transaction(
-              inConfig,
-              (taskSource: TaskSource, schema: Schema, taskCount: Int) => {
-                val outputs: Seq[MockPageOutput] =
-                  0.until(taskCount).map { _ => new MockPageOutput() }
-                val reports: Seq[TaskReport] = 0.until(taskCount).map {
-                  taskIndex =>
-                    plugin
-                      .run(taskSource, schema, taskIndex, outputs(taskIndex))
-                }
-                val pages: Seq[Page] = outputs.flatMap(_.pages)
-                test(Pages.toObjects(schema, pages).map(_.toSeq))
+          exec.getInjector.getInstance(classOf[UnionInputPlugin]).tap {
+            plugin =>
+              plugin.transaction(
+                inConfig,
+                (taskSource: TaskSource, schema: Schema, taskCount: Int) => {
+                  val outputs: Seq[MockPageOutput] =
+                    0.until(taskCount).map { _ => new MockPageOutput() }
+                  val reports: Seq[TaskReport] = 0.until(taskCount).map {
+                    taskIndex =>
+                      plugin
+                        .run(taskSource, schema, taskIndex, outputs(taskIndex))
+                  }
+                  val pages: Seq[Page] = outputs.flatMap(_.pages)
+                  test(Pages.toObjects(schema, pages).map(_.toSeq))
 
-                reports
-              }
-            )
+                  reports
+                }
+              )
           }
         }
       )
@@ -52,7 +115,7 @@ trait EmbulkTestHelper {
   }
 
   def loadConfigSourceFromYamlString(yaml: String): ConfigSource = {
-    new ConfigLoader(runtime.getModelManager).fromYamlString(yaml)
+    new ConfigLoader(exec.getModelManager).fromYamlString(yaml)
   }
 
   def tsvResourceDir: String = {

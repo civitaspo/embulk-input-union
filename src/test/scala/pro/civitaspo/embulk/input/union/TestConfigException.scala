@@ -1,17 +1,8 @@
 package pro.civitaspo.embulk.input.union
 
 import org.embulk.config.{ConfigException, ConfigSource}
-import org.junit.runner.RunWith
-import org.scalatest.diagrams.Diagrams
-import org.scalatest.funsuite.AnyFunSuite
-import org.scalatest.BeforeAndAfter
-import org.scalatestplus.junit.JUnitRunner
-@RunWith(classOf[JUnitRunner])
-class TestConfigException
-    extends AnyFunSuite
-    with EmbulkTestHelper
-    with BeforeAndAfter
-    with Diagrams {
+
+class TestConfigException extends EmbulkTestHelper {
 
   test("Throw ConfigException when \"union\" option is undefined") {
     val yaml = "{}" // empty yaml

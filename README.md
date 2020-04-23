@@ -82,7 +82,7 @@ $ embulk run example/config.yml -I build/gemContents/lib -b example
 ### Run tests
 
 ```shell
-$ ./gradlew test
+$ ./gradlew scalatest
 ```
 
 ### Run the formatter
