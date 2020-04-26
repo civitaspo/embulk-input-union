@@ -74,7 +74,7 @@ out:
 ### Run examples
 
 ```shell
-$ ./gradlew gem
+$ ./gradlew gem --write-locks
 $ embulk bundle install --gemfile ./example/Gemfile
 $ embulk run example/config.yml -I build/gemContents/lib -b example
 ```
@@ -98,7 +98,7 @@ $ ./gradlew spotlessApply
 ### Build
 
 ```shell
-$ ./gradlew gem  # -t to watch change of files and rebuild continuously
+$ ./gradlew gem --write-locks  # -t to watch change of files and rebuild continuously
 ```
 
 ### Release a new gem
