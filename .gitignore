@@ -12,3 +12,6 @@ build/
 .project
 Gemfile.lock
 vendor/
+/bin/
+/.metals/
+/.bloop/
