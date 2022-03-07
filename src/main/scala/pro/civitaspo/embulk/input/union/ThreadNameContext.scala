@@ -11,6 +11,8 @@ object ThreadNameContext {
   private def trimThreadId(str: String): String =
     str.replaceFirst("^\\d{4}:", "")
   private def currentThreadName: String = Thread.currentThread.getName
+
+  def isPreviewExecution: Boolean = currentThreadName.contains("preview")
 }
 
 case class ThreadNameContext private (
