@@ -11,7 +11,7 @@ import org.embulk.config.{
   TaskSource,
   Task => EmbulkTask
 }
-import org.embulk.exec.TransactionStage
+import org.embulk.exec.{PreviewedNoticeError, TransactionStage}
 import org.embulk.exec.TransactionStage.{
   EXECUTOR_BEGIN,
   EXECUTOR_COMMIT,
@@ -160,10 +160,15 @@ case class BreakinBulkLoader(task: BreakinBulkLoader.Task, idx: Int) {
         }
       }
       catch {
-        // NOTE: Wrap the exception by BreakinBulkLoader.Exception
-        //       in order to identify this exception thrown by this
-        //       BreakinBulkLoader.
-        case ex: Throwable => throw buildException(ex)
+        case ex: Throwable =>
+          Utils.recursiveExceptionMatch(ex, classOf[PreviewedNoticeError]) match {
+            // NOTE: Use this exception when executing `embulk preview`.
+            case Some(pre: PreviewedNoticeError) => throw pre
+            // NOTE: Wrap the exception by BreakinBulkLoader.Exception
+            //       in order to identify this exception thrown by this
+            //       BreakinBulkLoader.
+            case _ => throw buildException(ex)
+          }
       }
     }
   }
