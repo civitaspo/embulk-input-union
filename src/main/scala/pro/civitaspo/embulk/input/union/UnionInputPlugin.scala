@@ -98,13 +98,15 @@ class UnionInputPlugin extends InputPlugin {
     val task: PluginTask = taskSource.loadTask(classOf[PluginTask])
     val loaderTask: BreakinBulkLoader.Task = task.getUnion(taskIndex)
 
-    // NOTE: `embulk preview` shows the below error when output.finish() is executed.
-    // 2022-03-07 14:48:01.939 +0000 [ERROR] (0001:preview): PreviewResult recreation will cause a bug. The plugin must call PageOutput#finish() only once.
-    if (ThreadNameContext.isPreviewExecution)
-      BreakinBulkLoader(loaderTask, taskIndex).run(schema, output)
-    else
-      try BreakinBulkLoader(loaderTask, taskIndex).run(schema, output)
-      finally output.finish()
+    try BreakinBulkLoader(loaderTask, taskIndex).run(schema, output)
+    finally {
+      // NOTE: `embulk preview` shows the below error when output.finish() is executed.
+      // 2022-03-07 14:48:01.939 +0000 [ERROR] (0001:preview): PreviewResult recreation will cause a bug. The plugin must call PageOutput#finish() only once.
+      if (ThreadNameContext.isPreviewExecution) {
+        if (Utils.shouldFinishSamplingPageOutput(output)) output.finish()
+      }
+      else output.finish()
+    }
     Exec.newTaskReport()
   }
   override def guess(config: ConfigSource): ConfigDiff =
