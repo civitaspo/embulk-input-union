@@ -1,3 +1,8 @@
+0.0.4 (2022-03-24)
+==================
+
+* [#11](https://github.com/civitaspo/embulk-input-union/pull/11) Fix so that `embulk preview` can be executed normally even if Filter Plugin is used.
+
 0.0.3 (2022-03-20)
 ==================
 
