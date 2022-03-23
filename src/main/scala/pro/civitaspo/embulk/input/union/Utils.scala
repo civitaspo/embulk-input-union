@@ -6,6 +6,9 @@ import java.util.UUID
 import com.google.common.cache.CacheBuilder
 import java.util.concurrent.TimeUnit
 import org.embulk.spi.PageOutput
+import org.embulk.spi.PageBuilder
+
+import scala.util.chaining.scalaUtilChainingOps
 
 object Utils {
   import implicits._
@@ -39,26 +42,52 @@ object Utils {
     }
   }
 
-  def isSamplingPageOutput(output: PageOutput): Boolean = {
+  private def isSamplingPageOutput(output: PageOutput): Boolean = {
     // https://github.com/embulk/embulk/blob/8c7b1ac02e8fff3902bff573fd1cdf1709d1cdaf/embulk-core/src/main/java/org/embulk/exec/PreviewExecutor.java#L144
-    val klass =
-      Class.forName("org.embulk.exec.PreviewExecutor$SamplingPageOutput")
-    output.getClass() == klass
+    output.getClass() == Class.forName(
+      "org.embulk.exec.PreviewExecutor$SamplingPageOutput"
+    )
+  }
+
+  // CAUTION: This method extracts the SamplingPageOutput wrapped by the PageBuilders of the Filter
+  // Plugins. The PageBuilders are searched and extracted, but the usage of PageBuilders depends on
+  // the implementation of Filter Plugin, so it cannot be guaranteed to work properly.
+  private def digSamplingPageOutput(output: PageOutput): PageOutput = {
+    if (isSamplingPageOutput(output)) return output
+
+    val fields = output.getClass.getDeclaredFields ++ output.getClass.getFields
+    fields.find(f => classOf[PageBuilder].isAssignableFrom(f.getType)) match {
+      case Some(f) =>
+        val pb =
+          f.tap(_.setAccessible(true)).get(output).asInstanceOf[PageBuilder]
+        val o = classOf[PageBuilder]
+          .getDeclaredField("output")
+          .tap(_.setAccessible(true))
+          .get(pb)
+          .asInstanceOf[PageOutput]
+        digSamplingPageOutput(o)
+
+      case None =>
+        throw new UnsupportedOperationException(
+          s"Cannot find PageBuilder in ${output.getClass.getName}"
+        )
+    }
   }
 
   def shouldFinishSamplingPageOutput(output: PageOutput): Boolean = {
-    if (!isSamplingPageOutput(output))
-      throw new IllegalArgumentException(
-        s"output is not sampling page output.: ${output.getClass.getName}"
-      )
+    val o = digSamplingPageOutput(output)
     // NOTE: Need to call `output.finish()` only once to avoid the error: org.embulk.exec.NoSampleException: No input records to preview
     // https://github.com/embulk/embulk/blob/8c7b1ac02e8fff3902bff573fd1cdf1709d1cdaf/embulk-core/src/main/java/org/embulk/exec/PreviewExecutor.java#L144-L194
-    val sampleRows = output.getClass.getDeclaredField("sampleRows")
-    sampleRows.setAccessible(true)
-    val recordCount = output.getClass.getDeclaredField("recordCount")
-    recordCount.setAccessible(true)
-    !(recordCount.get(output).asInstanceOf[Int] >= sampleRows
-      .get(output)
-      .asInstanceOf[Int])
+    val sampleRows = o.getClass
+      .getDeclaredField("sampleRows")
+      .tap(_.setAccessible(true))
+      .get(o)
+      .asInstanceOf[Int]
+    val recordCount = o.getClass
+      .getDeclaredField("recordCount")
+      .tap(_.setAccessible(true))
+      .get(o)
+      .asInstanceOf[Int]
+    !(recordCount >= sampleRows)
   }
 }
