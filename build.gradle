@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "pro.civitaspo"
-version = "0.0.3"
+version = "0.0.4"
 description = "An input plugin for Embulk (https://github.com/embulk/embulk/) that" +
     " unions all data loaded by your defined embulk input & filters plugin configuration."
 
